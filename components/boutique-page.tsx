@@ -41,6 +41,11 @@ const ownerEmail =
 const whatsappUrl =
   `https://wa.me/${boutiquePhone}?text=Hello%20${encodeURIComponent(boutiqueName)}%2C%20I%20would%20like%20to%20chat%20with%20support.`;
 
+const emailTemplateFallbacks: Record<string, string> = {
+  kjh1fb: "template_gseeshk",
+  v3edt7j: "template_t42izq4"
+};
+
 type Product = (typeof products)[number];
 type CartItem = {
   product: Product;
@@ -79,8 +84,9 @@ function getDeliveryDate() {
 async function sendEmailJs(templateId: string | undefined, params: Record<string, string>, serviceOverride?: string) {
   const serviceId = serviceOverride ?? process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
   const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+  const resolvedTemplateId = templateId ? emailTemplateFallbacks[templateId] ?? templateId : undefined;
 
-  if (!serviceId || !publicKey || !templateId) {
+  if (!serviceId || !publicKey || !resolvedTemplateId) {
     return { ok: false, error: "Missing EmailJS service ID, template ID, or public key." };
   }
 
@@ -91,7 +97,7 @@ async function sendEmailJs(templateId: string | undefined, params: Record<string
     },
     body: JSON.stringify({
       service_id: serviceId,
-      template_id: templateId,
+      template_id: resolvedTemplateId,
       user_id: publicKey,
       template_params: params
     })

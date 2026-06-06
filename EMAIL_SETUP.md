@@ -6,11 +6,13 @@ Configured from your screenshots:
 
 ```text
 Service ID: service_2cbkncb
-Order template: kjh1fb
-Contact template: v3edt7j
+Order template: template_gseeshk
+Contact template: template_t42izq4
 Owner name: Sadaf Khan
 Owner email: mohdfaisal309007@gmail.com
 ```
+
+Note: `kjh1fb` and `v3edt7j` are dashboard URL slugs, not the EmailJS template IDs used by the API.
 
 The only value still needed is your EmailJS Public Key.
 
