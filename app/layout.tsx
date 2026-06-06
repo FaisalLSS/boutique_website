@@ -2,15 +2,16 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://viora-boutique.vercel.app"),
+  metadataBase: new URL("https://sadaf-boutique.vercel.app"),
   title: {
-    default: "Viora Boutique | Designer Ethnic Wear, Bridal Couture & Custom Stitching",
-    template: "%s | Viora Boutique"
+    default: "Sadaf Boutique | Designer Ethnic Wear, Bridal Couture & Custom Stitching",
+    template: "%s | Sadaf Boutique"
   },
   description:
-    "Viora Boutique creates premium women's ethnic wear, bridal collections, designer sarees, party wear, kurtis, gowns, and bespoke stitching.",
+    "Sadaf Boutique by Sadaf Khan creates premium women's ethnic wear, bridal collections, designer sarees, party wear, kurtis, gowns, and bespoke stitching.",
   keywords: [
-    "Viora Boutique",
+    "Sadaf Boutique",
+    "Sadaf Khan",
     "women fashion boutique",
     "bridal wear",
     "designer sarees",
@@ -19,11 +20,11 @@ export const metadata: Metadata = {
     "party wear dresses"
   ],
   openGraph: {
-    title: "Viora Boutique",
+    title: "Sadaf Boutique",
     description: "Luxury designer ethnic wear and custom couture for women.",
     type: "website",
-    url: "https://viora-boutique.vercel.app",
-    images: ["/images/og-viora.svg"]
+    url: "https://sadaf-boutique.vercel.app",
+    images: ["/images/og-sadaf.svg"]
   },
   robots: {
     index: true,

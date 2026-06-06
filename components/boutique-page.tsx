@@ -33,9 +33,13 @@ const FashionCanvas = dynamic(() => import("@/components/fashion-canvas"), {
 
 const boutiquePhone = "917839309007";
 const boutiquePhoneDisplay = "+91 78393 09007";
+const boutiqueName = "Sadaf Boutique";
+const boutiqueOwnerName = "Sadaf Khan";
 const instagramUrl = "https://www.instagram.com/_sk8241?igsh=MXR2YXV4dnVoczE1NA==";
+const ownerEmail =
+  process.env.NEXT_PUBLIC_BOUTIQUE_OWNER_EMAIL ?? process.env.NEXT_PUBLIC_VIORA_OWNER_EMAIL ?? "";
 const whatsappUrl =
-  `https://wa.me/${boutiquePhone}?text=Hello%20Viora%20Boutique%2C%20I%20would%20like%20to%20chat%20with%20support.`;
+  `https://wa.me/${boutiquePhone}?text=Hello%20${encodeURIComponent(boutiqueName)}%2C%20I%20would%20like%20to%20chat%20with%20support.`;
 
 type Product = (typeof products)[number];
 type CartItem = {
@@ -108,7 +112,7 @@ function Header({ cartCount, onCartOpen }: { cartCount: number; onCartOpen: () =
     <header className="fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-ink/45 text-ivory backdrop-blur-xl dark:bg-ink/70">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <a href="#home" className="font-display text-2xl font-semibold tracking-wide">
-          Viora
+          Sadaf
         </a>
         <div className="hidden items-center gap-7 text-sm uppercase tracking-[0.18em] text-ivory/78 md:flex">
           {links.map((link) => (
@@ -197,7 +201,7 @@ function Hero() {
             Designer ethnic couture for women
           </motion.p>
           <h1 ref={title} className="font-display text-6xl font-semibold leading-[0.9] sm:text-7xl lg:text-8xl">
-            <span className="block">Viora</span>
+            <span className="block">Sadaf</span>
             <span className="gold-text block">Boutique</span>
           </h1>
           <p className="mt-7 max-w-2xl text-lg leading-8 text-ivory/78 sm:text-xl">
@@ -379,7 +383,7 @@ function ProductShop({
         </motion.div>
 
         <SectionIntro
-          eyebrow="Shop Viora"
+          eyebrow="Shop Sadaf"
           title="Designer Suits, Frocks, Kurtis And Sarees"
           copy="Open any design to view 3-4 photos, select size, like favourites, and add to a cash-on-delivery cart."
         />
@@ -540,7 +544,7 @@ function ProductDetail({
           </motion.div>
         </div>
         <div className="py-2 lg:py-8">
-          <p className="text-xs font-bold uppercase tracking-[0.32em] text-rosewood dark:text-champagne">Viora Boutique</p>
+          <p className="text-xs font-bold uppercase tracking-[0.32em] text-rosewood dark:text-champagne">{boutiqueName}</p>
           <h3 className="mt-4 font-display text-4xl font-semibold leading-tight sm:text-5xl">{product.title}</h3>
           <p className="mt-4 text-lg">
             <span className="text-2xl font-semibold text-red-600">{formatPrice(product.price)}</span>
@@ -631,9 +635,11 @@ function CartDrawer({
       .join("\n");
     setEmailStatus("Sending confirmation emails...");
     try {
-      const orderId = `VIORA-${Date.now().toString().slice(-6)}`;
+      const orderId = `SADAF-${Date.now().toString().slice(-6)}`;
       const baseParams = {
         order_id: orderId,
+        boutique_name: boutiqueName,
+        owner_name: boutiqueOwnerName,
         customer_name: details.name,
         customer_email: details.email,
         customer_err: `, ${details.email}`,
@@ -646,7 +652,7 @@ function CartDrawer({
         order_total: formatPrice(total),
         delivery_date: deliveryDate,
         delivery_boy_phone: deliveryBoyPhone,
-        owner_email: process.env.NEXT_PUBLIC_VIORA_OWNER_EMAIL ?? "",
+        owner_email: ownerEmail,
         from_name: details.name,
         to_name: details.name,
         your_email: details.email,
@@ -660,7 +666,7 @@ function CartDrawer({
           to_email: details.email,
           receiver_email: details.email,
           email: details.email,
-          reply_to: process.env.NEXT_PUBLIC_VIORA_OWNER_EMAIL ?? ""
+          reply_to: ownerEmail
         },
         process.env.NEXT_PUBLIC_EMAILJS_ORDER_SERVICE_ID
       );
@@ -669,9 +675,10 @@ function CartDrawer({
         {
           ...baseParams,
           customer_err: "",
-          to_email: process.env.NEXT_PUBLIC_VIORA_OWNER_EMAIL ?? "",
-          receiver_email: process.env.NEXT_PUBLIC_VIORA_OWNER_EMAIL ?? "",
-          email: process.env.NEXT_PUBLIC_VIORA_OWNER_EMAIL ?? "",
+          to_name: boutiqueOwnerName,
+          to_email: ownerEmail,
+          receiver_email: ownerEmail,
+          email: ownerEmail,
           reply_to: details.email
         },
         process.env.NEXT_PUBLIC_EMAILJS_ORDER_SERVICE_ID
@@ -679,7 +686,7 @@ function CartDrawer({
       const success = customerSent.ok && ownerSent.ok;
       setEmailStatus(
         success
-          ? "Order confirmed. Emails were sent to customer and boutique."
+          ? "Order confirmed. Emails were sent to customer and Sadaf Boutique."
           : `EmailJS error: ${customerSent.error || ownerSent.error || "Please check service, template, and recipient settings."}`
       );
       if (success) {
@@ -839,7 +846,7 @@ function VideoShowcase() {
               <ArrowRight size={17} />
             </a>
           </div>
-          <iframe title="Viora Boutique Google Drive videos" src={driveVideoFolder.embedUrl} className="h-[460px] w-full border-0 bg-white" />
+          <iframe title="Sadaf Boutique Google Drive videos" src={driveVideoFolder.embedUrl} className="h-[460px] w-full border-0 bg-white" />
         </div>
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {videos.map((video, index) => (
@@ -936,14 +943,14 @@ function About() {
           viewport={{ once: true }}
           className="relative min-h-[520px] overflow-hidden rounded-lg shadow-luxury"
         >
-          <Image src="/images/about-atelier.svg" alt="Viora Boutique atelier" fill className="object-cover" />
+          <Image src="/images/about-atelier.svg" alt="Sadaf Boutique atelier" fill className="object-cover" />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 26 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.32em] text-champagne">Our story</p>
           <h2 className="font-display text-5xl font-semibold sm:text-6xl">An Atelier Built Around The Woman Wearing It</h2>
           <div className="mt-7 space-y-5 text-lg leading-8 text-ivory/75">
             <p>
-              Viora Boutique brings together custom tailoring expertise, premium fabric selection, and designer
+              Sadaf Boutique brings together custom tailoring expertise, premium fabric selection, and designer
               craftsmanship for women who want clothing that feels personal and occasion-worthy.
             </p>
             <p>
@@ -1015,7 +1022,7 @@ function InstagramFeed() {
       <div className="mx-auto max-w-7xl">
         <SectionIntro
           eyebrow="Instagram"
-          title="@vioraboutique"
+          title="@sadafboutique"
           copy="A ready-to-connect feed layout for new drops, bridal fittings, customer portraits, and reels."
         />
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
@@ -1031,7 +1038,7 @@ function InstagramFeed() {
               transition={{ delay: index * 0.04 }}
               className="group relative aspect-square overflow-hidden rounded-lg"
             >
-              <Image src={image} alt="Viora Instagram post" fill className="object-cover transition duration-700 group-hover:scale-110" />
+              <Image src={image} alt="Sadaf Instagram post" fill className="object-cover transition duration-700 group-hover:scale-110" />
               <span className="absolute inset-0 grid place-items-center bg-ink/40 opacity-0 transition group-hover:opacity-100">
                 <Instagram className="text-ivory" />
               </span>
@@ -1086,17 +1093,19 @@ function Contact() {
     setContactStatus("Sending enquiry...");
     try {
       const sent = await sendEmailJs(process.env.NEXT_PUBLIC_EMAILJS_CONTACT_TEMPLATE_ID, {
+        boutique_name: boutiqueName,
+        owner_name: boutiqueOwnerName,
         customer_name: String(form.get("name") ?? ""),
         customer_email: String(form.get("email") ?? ""),
         customer_phone: String(form.get("phone") ?? ""),
         service: String(form.get("service") ?? ""),
         message: String(form.get("message") ?? ""),
-        owner_email: process.env.NEXT_PUBLIC_VIORA_OWNER_EMAIL ?? "",
-        to_email: process.env.NEXT_PUBLIC_VIORA_OWNER_EMAIL ?? "",
-        receiver_email: process.env.NEXT_PUBLIC_VIORA_OWNER_EMAIL ?? "",
-        email: process.env.NEXT_PUBLIC_VIORA_OWNER_EMAIL ?? "",
+        owner_email: ownerEmail,
+        to_email: ownerEmail,
+        receiver_email: ownerEmail,
+        email: ownerEmail,
         from_name: String(form.get("name") ?? ""),
-        to_name: "Viora Boutique",
+        to_name: boutiqueOwnerName,
         your_email: String(form.get("email") ?? ""),
         reply_to: String(form.get("email") ?? "")
       }, process.env.NEXT_PUBLIC_EMAILJS_CONTACT_SERVICE_ID);
@@ -1113,7 +1122,7 @@ function Contact() {
     <section id="contact" className="bg-ink px-4 py-24 text-ivory sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-2">
         <div>
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-champagne">Visit Viora</p>
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.32em] text-champagne">Visit Sadaf</p>
           <h2 className="font-display text-5xl font-semibold sm:text-6xl">Book Your Boutique Consultation</h2>
           <p className="mt-5 max-w-xl text-lg leading-8 text-ivory/70">
             Share your occasion, timeline, and preferred style. Your enquiry is sent directly to our boutique email.
@@ -1130,7 +1139,7 @@ function Contact() {
           </div>
           <div className="mt-8 overflow-hidden rounded-lg border border-ivory/12">
             <iframe
-              title="Viora Boutique map"
+              title="Sadaf Boutique map"
               src="https://www.google.com/maps?q=New%20Delhi%20India&output=embed"
               className="h-72 w-full border-0"
               loading="lazy"
@@ -1193,7 +1202,7 @@ function Footer() {
   return (
     <footer className="bg-ink px-4 py-10 text-ivory/65 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 border-t border-ivory/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
-        <p className="font-display text-3xl text-ivory">Viora Boutique</p>
+        <p className="font-display text-3xl text-ivory">{boutiqueName}</p>
         <p className="text-sm">Designer ethnic wear, bridal couture, and bespoke stitching.</p>
       </div>
     </footer>

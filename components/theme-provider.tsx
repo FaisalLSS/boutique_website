@@ -16,14 +16,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("viora-theme") as Theme | null;
+    const stored = window.localStorage.getItem("sadaf-theme") as Theme | null;
     const initial = stored ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     setTheme(initial);
   }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    window.localStorage.setItem("viora-theme", theme);
+    window.localStorage.setItem("sadaf-theme", theme);
   }, [theme]);
 
   const value = useMemo(

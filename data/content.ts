@@ -75,7 +75,7 @@ export const videos = [
 
 export const driveVideoFolder = {
   id: "1XIpmm63Vn3vs9epy2uV5H7SlMTUm-C0W",
-  title: "Viora Boutique Google Drive Videos",
+  title: "Sadaf Boutique Google Drive Videos",
   url: "https://drive.google.com/drive/folders/1XIpmm63Vn3vs9epy2uV5H7SlMTUm-C0W?usp=drive_link",
   embedUrl: "https://drive.google.com/embeddedfolderview?id=1XIpmm63Vn3vs9epy2uV5H7SlMTUm-C0W#grid"
 };
@@ -241,7 +241,7 @@ export const testimonials = [
   {
     name: "Nisha Rao",
     role: "Party Wear",
-    quote: "Viora understood the look I wanted and turned it into a gown that photographed perfectly."
+    quote: "Sadaf Boutique understood the look I wanted and turned it into a gown that photographed perfectly."
   }
 ];
 
