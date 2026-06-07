@@ -12,6 +12,8 @@ import {
   Grid2X2,
   Heart,
   Instagram,
+  LogIn,
+  LogOut,
   Moon,
   Phone,
   Play,
@@ -22,6 +24,8 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  UserPlus,
+  UserRound,
   X
 } from "lucide-react";
 import { collections, driveVideoFolder, instagram, portfolio, products, services, testimonials, videos } from "@/data/content";
@@ -56,6 +60,30 @@ type CartItem = {
   quantity: number;
 };
 
+type AuthMode = "login" | "signup";
+
+type ToastMessage = {
+  id: number;
+  title: string;
+  message: string;
+};
+
+type AuthUser = {
+  name: string;
+  email: string;
+  phone: string;
+};
+
+type StoredUser = AuthUser & {
+  password: string;
+};
+
+type StoredCartItem = {
+  productId: string;
+  size: string;
+  quantity: number;
+};
+
 type CheckoutDetails = {
   name: string;
   email: string;
@@ -73,6 +101,55 @@ function formatPrice(price: number) {
 }
 
 const deliveryBoyPhone = boutiquePhoneDisplay;
+const usersStorageKey = "sadaf-users";
+const sessionStorageKey = "sadaf-current-user";
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function cartStorageKey(email: string) {
+  return `sadaf-cart:${normalizeEmail(email)}`;
+}
+
+function readStoredUsers() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const stored = window.localStorage.getItem(usersStorageKey);
+    return stored ? (JSON.parse(stored) as StoredUser[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredUsers(users: StoredUser[]) {
+  window.localStorage.setItem(usersStorageKey, JSON.stringify(users));
+}
+
+function readStoredCart(email: string) {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const stored = window.localStorage.getItem(cartStorageKey(email));
+    const items = stored ? (JSON.parse(stored) as StoredCartItem[]) : [];
+    return items.flatMap((item) => {
+      const product = products.find((candidate) => candidate.id === item.productId);
+      return product ? [{ product, size: item.size, quantity: item.quantity }] : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredCart(email: string, items: CartItem[]) {
+  const storedItems: StoredCartItem[] = items.map((item) => ({
+    productId: item.product.id,
+    size: item.size,
+    quantity: item.quantity
+  }));
+  window.localStorage.setItem(cartStorageKey(email), JSON.stringify(storedItems));
+}
 
 function getDeliveryDate() {
   const date = new Date();
@@ -136,7 +213,19 @@ async function sendEmailJs(templateId: string | undefined, params: Record<string
   return { ok: false, error: lastError };
 }
 
-function Header({ cartCount, onCartOpen }: { cartCount: number; onCartOpen: () => void }) {
+function Header({
+  cartCount,
+  currentUser,
+  onCartOpen,
+  onAuthOpen,
+  onLogout
+}: {
+  cartCount: number;
+  currentUser: AuthUser | null;
+  onCartOpen: () => void;
+  onAuthOpen: (mode: AuthMode) => void;
+  onLogout: () => void;
+}) {
   const { theme, toggleTheme } = useTheme();
   const links = ["Shop", "Portfolio", "Services", "Contact"];
 
@@ -154,6 +243,31 @@ function Header({ cartCount, onCartOpen }: { cartCount: number; onCartOpen: () =
           ))}
         </div>
         <div className="flex items-center gap-2">
+          {currentUser ? (
+            <button
+              type="button"
+              onClick={onLogout}
+              aria-label="Log out"
+              className="hidden h-10 items-center gap-2 rounded-full border border-white/20 px-3 text-sm font-semibold text-ivory transition hover:border-champagne hover:text-champagne sm:inline-flex"
+            >
+              <UserRound size={17} />
+              {currentUser.name.split(" ")[0] || "Account"}
+              <LogOut size={16} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAuthOpen("login")}
+              aria-label="Login or sign up"
+              className="grid h-10 w-10 place-items-center rounded-full border border-white/20 text-ivory transition hover:border-champagne hover:text-champagne sm:w-auto sm:px-3"
+            >
+              <span className="hidden items-center gap-2 text-sm font-semibold sm:inline-flex">
+                <LogIn size={17} />
+                Login
+              </span>
+              <LogIn className="sm:hidden" size={18} />
+            </button>
+          )}
           <button
             type="button"
             onClick={onCartOpen}
@@ -185,6 +299,166 @@ function Header({ cartCount, onCartOpen }: { cartCount: number; onCartOpen: () =
         </div>
       </nav>
     </header>
+  );
+}
+
+function AuthModal({
+  mode,
+  onModeChange,
+  onClose,
+  onSuccess
+}: {
+  mode: AuthMode;
+  onModeChange: (mode: AuthMode) => void;
+  onClose: () => void;
+  onSuccess: (user: AuthUser) => void;
+}) {
+  const [status, setStatus] = useState("");
+  const isSignup = mode === "signup";
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const email = normalizeEmail(String(form.get("email") ?? ""));
+    const password = String(form.get("password") ?? "");
+    const users = readStoredUsers();
+    const existingUser = users.find((user) => normalizeEmail(user.email) === email);
+
+    if (isSignup) {
+      const name = String(form.get("name") ?? "").trim();
+      const phone = String(form.get("phone") ?? "").trim();
+
+      if (existingUser) {
+        setStatus("Account already exists. Please login with this email.");
+        return;
+      }
+
+      if (password.length < 6) {
+        setStatus("Password must be at least 6 characters.");
+        return;
+      }
+
+      const newUser = { name, email, phone, password };
+      saveStoredUsers([...users, newUser]);
+      window.localStorage.setItem(sessionStorageKey, email);
+      onSuccess({ name, email, phone });
+      return;
+    }
+
+    if (!existingUser || existingUser.password !== password) {
+      setStatus("Invalid email or password.");
+      return;
+    }
+
+    window.localStorage.setItem(sessionStorageKey, existingUser.email);
+    onSuccess({ name: existingUser.name, email: existingUser.email, phone: existingUser.phone });
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[70] grid place-items-center bg-ink/78 px-4 backdrop-blur-md"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <button type="button" className="absolute inset-0 cursor-default" aria-label="Close account form" onClick={onClose} />
+      <motion.form
+        onSubmit={handleSubmit}
+        initial={{ y: 26, scale: 0.97 }}
+        animate={{ y: 0, scale: 1 }}
+        exit={{ y: 18, scale: 0.98 }}
+        transition={{ type: "spring", damping: 24, stiffness: 260 }}
+        className="relative w-full max-w-md rounded-lg bg-ivory p-6 text-ink shadow-luxury dark:bg-[#20191b] dark:text-ivory sm:p-8"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close account form"
+          className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full border border-ink/10 dark:border-ivory/10"
+        >
+          <X size={18} />
+        </button>
+        <div className="mb-6">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-rosewood dark:text-champagne">Account</p>
+          <h2 className="font-display text-4xl font-semibold">{isSignup ? "Create account" : "Login"}</h2>
+        </div>
+
+        {isSignup && (
+          <>
+            <label className="mb-4 block text-sm font-semibold">
+              Full Name
+              <input name="name" required className="mt-2 w-full rounded-md border border-ink/15 bg-white px-4 py-3 outline-none focus:border-rosewood dark:bg-ink" />
+            </label>
+            <label className="mb-4 block text-sm font-semibold">
+              Phone Number
+              <input name="phone" required className="mt-2 w-full rounded-md border border-ink/15 bg-white px-4 py-3 outline-none focus:border-rosewood dark:bg-ink" />
+            </label>
+          </>
+        )}
+
+        <label className="mb-4 block text-sm font-semibold">
+          Email ID
+          <input name="email" type="email" required className="mt-2 w-full rounded-md border border-ink/15 bg-white px-4 py-3 outline-none focus:border-rosewood dark:bg-ink" />
+        </label>
+        <label className="mb-5 block text-sm font-semibold">
+          Password
+          <input name="password" type="password" required className="mt-2 w-full rounded-md border border-ink/15 bg-white px-4 py-3 outline-none focus:border-rosewood dark:bg-ink" />
+        </label>
+
+        {status && <p className="mb-4 text-sm text-rosewood dark:text-champagne">{status}</p>}
+
+        <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-rosewood px-6 py-4 font-semibold text-ivory">
+          {isSignup ? <UserPlus size={18} /> : <LogIn size={18} />}
+          {isSignup ? "Sign Up" : "Login"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setStatus("");
+            onModeChange(isSignup ? "login" : "signup");
+          }}
+          className="mt-4 w-full rounded-full border border-ink/15 px-6 py-3 font-semibold dark:border-ivory/15"
+        >
+          {isSignup ? "Already have an account? Login" : "New customer? Sign up"}
+        </button>
+      </motion.form>
+    </motion.div>
+  );
+}
+
+function ToastPopup({ toast, onClose }: { toast: ToastMessage; onClose: () => void }) {
+  useEffect(() => {
+    const timer = window.setTimeout(onClose, 3200);
+    return () => window.clearTimeout(timer);
+  }, [toast.id, onClose]);
+
+  return (
+    <motion.div
+      className="fixed right-4 top-24 z-[80] w-[calc(100%-2rem)] max-w-sm rounded-lg border border-ink/10 bg-ivory p-4 text-ink shadow-luxury dark:border-ivory/10 dark:bg-[#20191b] dark:text-ivory sm:right-6"
+      initial={{ opacity: 0, y: -18, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -12, scale: 0.98 }}
+      transition={{ type: "spring", damping: 22, stiffness: 260 }}
+      role="status"
+    >
+      <div className="flex items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rosewood text-ivory">
+          <CheckCircle2 size={20} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">{toast.title}</p>
+          <p className="mt-1 text-sm leading-5 text-ink/65 dark:text-ivory/65">{toast.message}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close message"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink/10 dark:border-ivory/10"
+        >
+          <X size={15} />
+        </button>
+      </div>
+    </motion.div>
   );
 }
 
@@ -637,15 +911,19 @@ function ProductDetail({
 function CartDrawer({
   items,
   open,
+  currentUser,
   onClose,
   onRemove,
-  onQuantity
+  onQuantity,
+  onOrderComplete
 }: {
   items: CartItem[];
   open: boolean;
+  currentUser: AuthUser | null;
   onClose: () => void;
   onRemove: (id: string, size: string) => void;
   onQuantity: (id: string, size: string, quantity: number) => void;
+  onOrderComplete: () => void;
 }) {
   const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -656,6 +934,7 @@ function CartDrawer({
     setEmailStatus(message);
     setShowCheckout(false);
     setShowOrderConfirmed(true);
+    onOrderComplete();
   }
 
   function closeCart() {
@@ -814,15 +1093,31 @@ function CartDrawer({
                   </p>
                   <label className="block text-sm font-semibold">
                     Full Name
-                    <input name="name" required className="mt-2 w-full rounded-md border border-ink/15 bg-white px-4 py-3 outline-none focus:border-rosewood dark:bg-ink" />
+                    <input
+                      name="name"
+                      required
+                      defaultValue={currentUser?.name ?? ""}
+                      className="mt-2 w-full rounded-md border border-ink/15 bg-white px-4 py-3 outline-none focus:border-rosewood dark:bg-ink"
+                    />
                   </label>
                   <label className="block text-sm font-semibold">
                     Email ID
-                    <input name="email" type="email" required className="mt-2 w-full rounded-md border border-ink/15 bg-white px-4 py-3 outline-none focus:border-rosewood dark:bg-ink" />
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      defaultValue={currentUser?.email ?? ""}
+                      className="mt-2 w-full rounded-md border border-ink/15 bg-white px-4 py-3 outline-none focus:border-rosewood dark:bg-ink"
+                    />
                   </label>
                   <label className="block text-sm font-semibold">
                     Phone Number
-                    <input name="phone" required className="mt-2 w-full rounded-md border border-ink/15 bg-white px-4 py-3 outline-none focus:border-rosewood dark:bg-ink" />
+                    <input
+                      name="phone"
+                      required
+                      defaultValue={currentUser?.phone ?? ""}
+                      className="mt-2 w-full rounded-md border border-ink/15 bg-white px-4 py-3 outline-none focus:border-rosewood dark:bg-ink"
+                    />
                   </label>
                   <label className="block text-sm font-semibold">
                     Full Address
@@ -1295,9 +1590,74 @@ function Footer() {
 export default function BoutiquePage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [cartReady, setCartReady] = useState(false);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  useEffect(() => {
+    const storedEmail = window.localStorage.getItem(sessionStorageKey);
+    const storedUser = readStoredUsers().find((user) => normalizeEmail(user.email) === normalizeEmail(storedEmail ?? ""));
+
+    if (storedUser) {
+      setCurrentUser({ name: storedUser.name, email: storedUser.email, phone: storedUser.phone });
+      setCart(readStoredCart(storedUser.email));
+    }
+
+    setCartReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!cartReady || !currentUser) return;
+    saveStoredCart(currentUser.email, cart);
+  }, [cart, cartReady, currentUser]);
+
+  function openAuth(mode: AuthMode) {
+    setAuthMode(mode);
+    setAuthOpen(true);
+  }
+
+  function showToast(title: string, message: string) {
+    setToast({ id: Date.now(), title, message });
+  }
+
+  function handleAuthSuccess(user: AuthUser) {
+    const mode = authMode;
+    setCurrentUser(user);
+    setCart(readStoredCart(user.email));
+    setAuthOpen(false);
+    showToast(
+      mode === "signup" ? "Account created" : "Login successful",
+      mode === "signup" ? `Welcome, ${user.name}. Your account is ready.` : `Welcome back, ${user.name}.`
+    );
+  }
+
+  function logout() {
+    const userName = currentUser?.name ?? "customer";
+    setCurrentUser(null);
+    setCart([]);
+    setCartOpen(false);
+    window.localStorage.removeItem(sessionStorageKey);
+    showToast("Logged out", `${userName}, you have been logged out successfully.`);
+  }
+
+  function openCart() {
+    if (!currentUser) {
+      openAuth("login");
+      return;
+    }
+
+    setCartOpen(true);
+  }
+
   function addToCart(product: Product, size: string) {
+    if (!currentUser) {
+      openAuth("login");
+      return;
+    }
+
     setCart((current) => {
       const existing = current.find((item) => item.product.id === product.id && item.size === size);
       if (existing) {
@@ -1320,11 +1680,25 @@ export default function BoutiquePage() {
     );
   }
 
+  function clearPurchasedCart() {
+    if (currentUser) {
+      window.localStorage.removeItem(cartStorageKey(currentUser.email));
+    }
+
+    setCart([]);
+  }
+
   return (
     <ThemeProvider>
       <div className="min-h-screen bg-ivory text-ink dark:bg-ink dark:text-ivory">
         <div className="noise" />
-        <Header cartCount={cartCount} onCartOpen={() => setCartOpen(true)} />
+        <Header
+          cartCount={cartCount}
+          currentUser={currentUser}
+          onCartOpen={openCart}
+          onAuthOpen={openAuth}
+          onLogout={logout}
+        />
         <main>
           <Hero />
           <ProductShop onAddToCart={addToCart} />
@@ -1340,10 +1714,25 @@ export default function BoutiquePage() {
         <CartDrawer
           items={cart}
           open={cartOpen}
+          currentUser={currentUser}
           onClose={() => setCartOpen(false)}
           onRemove={removeFromCart}
           onQuantity={updateQuantity}
+          onOrderComplete={clearPurchasedCart}
         />
+        <AnimatePresence>
+          {authOpen && (
+            <AuthModal
+              mode={authMode}
+              onModeChange={setAuthMode}
+              onClose={() => setAuthOpen(false)}
+              onSuccess={handleAuthSuccess}
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {toast && <ToastPopup toast={toast} onClose={() => setToast(null)} />}
+        </AnimatePresence>
       </div>
     </ThemeProvider>
   );
