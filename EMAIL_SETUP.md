@@ -6,7 +6,7 @@ Configured from your screenshots:
 
 ```text
 Service ID: service_2cbkncb
-Order template: template_gseeshk
+Order template: template_qseeshk
 Contact template: template_t42izq4
 Owner name: Sadaf Khan
 Owner email: mohdfaisal309007@gmail.com
@@ -57,7 +57,13 @@ to_email
 reply_to
 ```
 
-For order confirmation, set the template recipient email to `{{to_email}}`.
+For order confirmation, set the template recipient email to only:
+
+```text
+{{to_email}}
+```
+
+Do not use `mohdfaisal309007@gmail.com {{customer_email}}` in the same To Email field.
 The website sends the same order template twice:
 
 - once with `to_email` as the customer email

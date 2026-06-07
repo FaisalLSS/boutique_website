@@ -41,9 +41,12 @@ const ownerEmail =
 const whatsappUrl =
   `https://wa.me/${boutiquePhone}?text=Hello%20${encodeURIComponent(boutiqueName)}%2C%20I%20would%20like%20to%20chat%20with%20support.`;
 
-const emailTemplateFallbacks: Record<string, string> = {
-  kjh1fb: "template_gseeshk",
-  v3edt7j: "template_t42izq4"
+const emailTemplateFallbacks: Record<string, string[]> = {
+  kjh1fb: ["template_qseeshk", "template_gseeshk"],
+  template_qseeshk: ["kjh1fb", "template_gseeshk"],
+  template_gseeshk: ["template_qseeshk", "kjh1fb"],
+  v3edt7j: ["template_t42izq4"],
+  template_t42izq4: ["v3edt7j"]
 };
 
 type Product = (typeof products)[number];
@@ -81,33 +84,56 @@ function getDeliveryDate() {
   });
 }
 
+function formatEmailJsError(error = "") {
+  const normalizedError = error.toLowerCase();
+
+  if (normalizedError.includes("invalid grant")) {
+    return "Email service needs Gmail reconnection. Please contact Sadaf Boutique on WhatsApp or call us.";
+  }
+
+  if (normalizedError.includes("template id not found")) {
+    return "Email template was not found. Please update the order/contact template ID from the EmailJS dashboard.";
+  }
+
+  return error || "Please check service, template, and recipient settings.";
+}
+
 async function sendEmailJs(templateId: string | undefined, params: Record<string, string>, serviceOverride?: string) {
   const serviceId = serviceOverride ?? process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
   const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
-  const resolvedTemplateId = templateId ? emailTemplateFallbacks[templateId] ?? templateId : undefined;
+  const templateIds = templateId ? Array.from(new Set([templateId, ...(emailTemplateFallbacks[templateId] ?? [])])) : [];
 
-  if (!serviceId || !publicKey || !resolvedTemplateId) {
+  if (!serviceId || !publicKey || templateIds.length === 0) {
     return { ok: false, error: "Missing EmailJS service ID, template ID, or public key." };
   }
 
-  const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      service_id: serviceId,
-      template_id: resolvedTemplateId,
-      user_id: publicKey,
-      template_params: params
-    })
-  });
+  let lastError = "";
 
-  if (!response.ok) {
-    return { ok: false, error: await response.text() };
+  for (const currentTemplateId of templateIds) {
+    const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        service_id: serviceId,
+        template_id: currentTemplateId,
+        user_id: publicKey,
+        template_params: params
+      })
+    });
+
+    if (response.ok) {
+      return { ok: true, error: "" };
+    }
+
+    lastError = await response.text();
+    if (!lastError.toLowerCase().includes("template id not found")) {
+      return { ok: false, error: lastError };
+    }
   }
 
-  return { ok: true, error: "" };
+  return { ok: false, error: lastError };
 }
 
 function Header({ cartCount, onCartOpen }: { cartCount: number; onCartOpen: () => void }) {
@@ -623,7 +649,19 @@ function CartDrawer({
 }) {
   const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showOrderConfirmed, setShowOrderConfirmed] = useState(false);
   const [emailStatus, setEmailStatus] = useState("");
+
+  function confirmOrder(message: string) {
+    setEmailStatus(message);
+    setShowCheckout(false);
+    setShowOrderConfirmed(true);
+  }
+
+  function closeCart() {
+    setShowOrderConfirmed(false);
+    onClose();
+  }
 
   async function checkout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -689,14 +727,14 @@ function CartDrawer({
         },
         process.env.NEXT_PUBLIC_EMAILJS_ORDER_SERVICE_ID
       );
-      const success = customerSent.ok && ownerSent.ok;
-      setEmailStatus(
-        success
-          ? "Order confirmed. Emails were sent to customer and Sadaf Boutique."
-          : `EmailJS error: ${customerSent.error || ownerSent.error || "Please check service, template, and recipient settings."}`
-      );
-      if (success) {
-        setShowCheckout(false);
+      if (customerSent.ok && ownerSent.ok) {
+        confirmOrder("Order confirmed. Emails were sent to customer and Sadaf Boutique.");
+      } else if (ownerSent.ok) {
+        confirmOrder(`Order confirmed. Email was sent to Sadaf Boutique, but the customer email failed: ${formatEmailJsError(customerSent.error)}`);
+      } else if (customerSent.ok) {
+        confirmOrder(`Order confirmed. Customer email was sent, but Sadaf Boutique email failed: ${formatEmailJsError(ownerSent.error)}`);
+      } else {
+        setEmailStatus(`EmailJS error: ${formatEmailJsError(customerSent.error || ownerSent.error)}`);
       }
     } catch (error) {
       setEmailStatus(`Email could not be sent right now. ${error instanceof Error ? error.message : "Please try again."}`);
@@ -707,7 +745,45 @@ function CartDrawer({
     <AnimatePresence>
       {open && (
         <motion.div className="fixed inset-0 z-50 bg-ink/65 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <button type="button" className="absolute inset-0 cursor-default" aria-label="Close cart overlay" onClick={onClose} />
+          <button type="button" className="absolute inset-0 cursor-default" aria-label="Close cart overlay" onClick={closeCart} />
+          <AnimatePresence>
+            {showOrderConfirmed && (
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="order-confirmed-title"
+                className="absolute inset-0 z-20 grid place-items-center px-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  initial={{ y: 24, scale: 0.96 }}
+                  animate={{ y: 0, scale: 1 }}
+                  exit={{ y: 18, scale: 0.98 }}
+                  transition={{ type: "spring", damping: 22, stiffness: 260 }}
+                  className="w-full max-w-sm rounded-lg bg-ivory p-6 text-center text-ink shadow-luxury dark:bg-[#20191b] dark:text-ivory"
+                >
+                  <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-rosewood text-ivory">
+                    <CheckCircle2 size={28} />
+                  </div>
+                  <h3 id="order-confirmed-title" className="mt-4 font-display text-3xl font-semibold">
+                    Your order is confirmed
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-ink/65 dark:text-ivory/65">
+                    Confirmation email has been sent. Sadaf Boutique will contact you soon for delivery.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowOrderConfirmed(false)}
+                    className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-rosewood px-6 py-3 font-semibold text-ivory"
+                  >
+                    Done
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <motion.aside
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
@@ -720,7 +796,7 @@ function CartDrawer({
                 <p className="text-xs font-bold uppercase tracking-[0.28em] text-rosewood dark:text-champagne">Your cart</p>
                 <h3 className="font-display text-3xl font-semibold">Cash On Delivery</h3>
               </div>
-              <button type="button" onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full border border-ink/10 dark:border-ivory/10">
+              <button type="button" onClick={closeCart} className="grid h-10 w-10 place-items-center rounded-full border border-ink/10 dark:border-ivory/10">
                 <X size={18} />
               </button>
             </div>
@@ -1095,7 +1171,8 @@ function Contact() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const contactForm = event.currentTarget;
+    const form = new FormData(contactForm);
     setContactStatus("Sending enquiry...");
     try {
       const sent = await sendEmailJs(process.env.NEXT_PUBLIC_EMAILJS_CONTACT_TEMPLATE_ID, {
@@ -1115,9 +1192,9 @@ function Contact() {
         your_email: String(form.get("email") ?? ""),
         reply_to: String(form.get("email") ?? "")
       }, process.env.NEXT_PUBLIC_EMAILJS_CONTACT_SERVICE_ID);
-      setContactStatus(sent.ok ? "Email enquiry sent successfully. We will contact you soon." : `EmailJS error: ${sent.error || "Please check service, template, and recipient settings."}`);
+      setContactStatus(sent.ok ? "Email enquiry sent successfully. We will contact you soon." : `EmailJS error: ${formatEmailJsError(sent.error)}`);
       if (sent.ok) {
-        event.currentTarget.reset();
+        contactForm.reset();
       }
     } catch {
       setContactStatus("Email could not be sent right now. Please try again.");
